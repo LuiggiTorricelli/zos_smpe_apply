@@ -1,0 +1,8 @@
+# Display output at the end or not
+show_output: true
+
+# SMP/E options to be used on APPLY
+smpe_options: []
+
+# SMP/E SMPPTS data set
+smpe_smppts: ""

@@ -1,0 +1,28 @@
+---
+argument_specs:
+  main:
+    short_description: Main set of tasks of the role zos_smpe_apply.
+    author: Luiggi Torricelli
+    options:
+      show_output:
+        default: true
+        description: "A boolean to determine if output should be displayed or not at the end."
+        required: false
+        type: "bool"
+      smpe_apply_options:
+        description: "An object containing options considered on the SMP/E APPLY command."
+        required: true
+        type: "dict"
+      smpe_global_csi:
+        description: "A string containing the SMP/E GLOBAL CSI data set name to be used."
+        required: true
+        type: "str"
+      smpe_smppts:
+        default: ""
+        description: "A string containing the SMPPTS data set on z/OS to be used to find the SYSMOD content."
+        required: false
+        type: "str"
+      smpe_target_zone:
+        description: "A string containing the SMP/E target zone name to be used to have the SYSMODs applied to."
+        required: true
+        type: "str"

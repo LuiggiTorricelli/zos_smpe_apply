@@ -1,0 +1,88 @@
+SET BOUNDARY({{ smpe_target_zone | upper }}).
+APPLY
+{% set bool_options = ['apars', 'assem', 'check', 'functions', 'group', 'jclinreport', 'ptfs', 'redo', 'retry', 'reuse', 'usermods', 'xzreq'] %}
+{% set list_options = ['exclude', 'exsrcid', 'fixcat', 'forfmid', 'nojclin', 'select', 'sourceid', 'xzgroup'] %}
+{% set bypass_bool_options = ['id', 'ifreq', 'pre', 'req'] %}
+{% set bypass_list_options = ['holdclass', 'holderror', 'holdfixcat', 'holduser', 'xzifreq'] %}
+{% for option in smpe_apply_options %}
+{% if option in bool_options %}
+{% if option == 'retry' %}
+  RETRY({{ 'NO' if not smpe_apply_options[option] else 'YES' }})
+{% elif option == 'jclinreport' %}
+  {{ 'NO' if not smpe_apply_options[option] else '' }}JCLINREPORT
+{% elif smpe_apply_options[option] %}
+  {{ option | upper }}
+{% endif %}
+{% endif %}
+{% if option == 'groupextend' %}
+  GROUPEXTEND{{ '(' + smpe_apply_options[option] | join(', ') + ')' if smpe_apply_options[option] | length > 0 else '' }}
+{% endif %}
+{% if option == 'compress' and smpe_apply_options[option] | length > 0 %}
+{% if smpe_apply_options[option] == 'ALL' %}
+  COMPRESS(ALL)
+{% else %}
+  COMPRESS(
+{% for elem in smpe_apply_options[option] | unique %}
+    {{ elem | upper }},
+{% endfor %}
+  )
+{% endif %}
+{% endif %}
+{% if option in list_options %}
+{% if option == 'nojclin' %}
+{% if smpe_apply_options[option] | length == 0 %}
+  NOJCLIN
+{% else %}
+  NOJCLIN(
+{% for elem in smpe_apply_options[option] | unique %}
+    {{ elem | upper }},
+{% endfor %}
+  )
+{% endif %}
+{% elif smpe_apply_options[option] | length > 0 %}
+  {{ option | upper }}(
+{% for elem in smpe_apply_options[option] | unique %}
+    {{ elem | upper }},
+{% endfor %}
+  )
+{% endif %}
+{% endif %}
+{% if option == 'bypass' and smpe_apply_options[option] | length > 0 %}
+  BYPASS(
+{% for key in smpe_apply_options[option] %}
+{% if key in bypass_bool_options and smpe_apply_options[option][key] %}
+    {{ key | upper }},
+{% elif key in bypass_list_options %}
+{% if smpe_apply_options[option][key] | length == 0 %}
+    {{ key | upper }},
+{% else %}
+    {{ key | upper }}(
+{% for value in smpe_apply_options[option][key] %}
+      {{ value | upper if key != 'holdfixcat' else value }},
+{% endfor %}
+    ),
+{% endif %}
+{% elif key == 'holdsystem' %}
+{% if smpe_apply_options[option][key] | length == 0 %}
+    {{ key | upper }},
+{% else %}
+    {{ key | upper }}(
+{% for reason in smpe_apply_options[option][key] %}
+{% if smpe_apply_options[option][key][reason] | length == 0 %}
+      {{ reason | upper }},
+{% else %}
+      {{ reason | upper }}(
+{% for sysmod in smpe_apply_options[option][key][reason] %}
+        {{ sysmod | upper }},
+{% endfor %}
+      ),
+{% endif %}
+{% endfor %}
+    ),
+{% endif %}
+{% endif %}
+{% endfor %}
+  )
+{% endif %}
+{% endfor %}
+.
