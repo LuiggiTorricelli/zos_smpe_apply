@@ -123,7 +123,7 @@ A fact named `zos_smpe_apply_details` is registered when the role is successfull
             "UI91234",
             "UI99123",
         ],
-        "check": false,
+        "check": true,
         "element_summary": [
             {
                 "assem_names": [],
