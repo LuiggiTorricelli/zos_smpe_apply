@@ -87,9 +87,11 @@ None.
 
 ## Example Playbook
 
-On the scenario below, the role `zos_smpe_apply` is being used to apply the PTFs UI97000 and UI91000 and APAR PH12345 to the target zone `ZONEAAA`. The SMP/E CSI data set is `SMPE.GLOBAL.CSI`. The CHECK attribute is required to first verify the apply process for the specified SYSMODs. All system hold actions also needs to be bypassed.
+On the scenario below, the role `zos_smpe_apply` is being used to apply the fictitionous PTFs UI97000 and UI91000 and APAR PH12345 to the target zone `ZONEAAA`. The SMP/E CSI data set is `SMPE.GLOBAL.CSI`. The CHECK attribute is required to first verify the apply process for the specified SYSMODs. All system hold actions also needs to be bypassed.
 
 Note that `bypass.holdsystem` is being informed as an empty dictionary. That would translate to `BYPASS(HOLDSYSTEM)` on the SMP/E APPLY command.
+
+See that `smpe_smppts` is not being informed. This way, it is not added to the GIMSMP program call, causing it to look for the SMPPTS data set on the SMP/E CSI DDDEF entry.
 
     - hosts: zos_server
       roles:
@@ -108,11 +110,123 @@ Note that `bypass.holdsystem` is being informed as an empty dictionary. That wou
             bypass:
               holdsystem: {}
 
-## Expected Result
+## Sample Output
 
-When this role is successfully executed, it will perform a sequence of steps to apply the requested SYSMODs the specified target zone, by generating the SMP/E APPLY command statement and executing it with the GIMSMP JCL program.
+When this role is executed, it will perform a sequence of steps to apply the requested SYSMODs on the specified target zone, by generating the SMP/E APPLY command statement and executing it with the GIMSMP JCL program.
 
-A fact named `zos_smpe_apply_output` is registered, containing the output of the SMP/E APPLY command executed. It will be displayed if `show_output` is set to `true`. With it, we can confirm if the apply worked successfully as expected or not.
+A fact named `zos_smpe_apply_details` is registered when the role is successfully executed, containing details about the result of SMP/E APPLY process, such as the applied SYSMODs, the CHECK usage and the element summary. It will be displayed if `show_output` is set to `true`.
+
+    "zos_smpe_apply_details": {
+        "applied_sysmods": [
+            "UI97000",
+            "UI91000",
+            "UI91234",
+            "UI99123",
+        ],
+        "check": false,
+        "element_summary": [
+            {
+                "assem_names": [],
+                "current_fmid": "HXXXXXX",
+                "current_rmid": "UI97000",
+                "distlib_library": "ADSNMACS",
+                "element_name": "DSNDQWPZ",
+                "element_status": "APPLIED",
+                "element_type": "MAC",
+                "load_modules": [],
+                "other_status": [],
+                "syslib_library": "SDSNMACS",
+                "sysmod_name": "UI97000",
+                "sysmod_status": "APPLIED"
+            },
+            {
+                "assem_names": [],
+                "current_fmid": "HXXXXXX",
+                "current_rmid": "UI91000",
+                "distlib_library": "ADSNLOAD",
+                "element_name": "DSNB1CMU",
+                "element_status": "APPLIED",
+                "element_type": "MOD",
+                "load_modules": [
+                    {
+                        "lmod_syslib": "SDSNLOAD",
+                        "load_module": "DSNIDM"
+                    }
+                ],
+                "other_status": [],
+                "syslib_library": "",
+                "sysmod_name": "UI91000",
+                "sysmod_status": "APPLIED"
+            },
+            {
+                "assem_names": [],
+                "current_fmid": "HXXXXXX",
+                "current_rmid": "UI91000",
+                "distlib_library": "ADSNLOAD",
+                "element_name": "DSNB1DCM",
+                "element_status": "APPLIED",
+                "element_type": "MOD",
+                "load_modules": [
+                    {
+                        "lmod_syslib": "SDSNLOAD",
+                        "load_module": "DSNIDM"
+                    }
+                ],
+                "other_status": [
+                    {
+                        "element_status": "NOT SEL",
+                        "sysmod_name": "UI91234",
+                        "sysmod_status": "APPLIED"
+                    }
+                ],
+                "syslib_library": "",
+                "sysmod_name": "UI91000",
+                "sysmod_status": "APPLIED"
+            },
+            {
+                "assem_names": [],
+                "current_fmid": "HXXXXXX",
+                "current_rmid": "UI91234",
+                "distlib_library": "ADSNLOAD",
+                "element_name": "DSNB1DDN",
+                "element_status": "APPLIED",
+                "element_type": "MOD",
+                "load_modules": [
+                    {
+                        "lmod_syslib": "SDSNLOAD",
+                        "load_module": "DSNIDM"
+                    }
+                ],
+                "other_status": [],
+                "syslib_library": "",
+                "sysmod_name": "UI91234",
+                "sysmod_status": "APPLIED"
+            },
+            {
+                "assem_names": [],
+                "current_fmid": "HXXXXXX",
+                "current_rmid": "UI99123",
+                "distlib_library": "ADSNLOAD",
+                "element_name": "DSNB1DGB",
+                "element_status": "APPLIED",
+                "element_type": "MOD",
+                "load_modules": [
+                    {
+                        "lmod_syslib": "SDSNLOAD",
+                        "load_module": "DSNIDM"
+                    },
+                    {
+                        "lmod_syslib": "SDSNLOAD",
+                        "load_module": "DSNXXX"
+                    }
+                ],
+                "other_status": [],
+                "syslib_library": "",
+                "sysmod_name": "UI99123",
+                "sysmod_status": "APPLIED"
+            }
+        ]
+    }
 
 ## License
 

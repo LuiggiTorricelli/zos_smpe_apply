@@ -4,7 +4,7 @@
     that:
       - smpe_apply_options is mapping
       - (smpe_global_csi is string) and (smpe_global_csi is iterable) and (smpe_global_csi is not mapping)
-      - (smpe_smppts is string) and (smpe_smpnts is iterable) and (smpe_smpnts is not mapping)
+      - (smpe_smppts is string) and (smpe_smppts is iterable) and (smpe_smppts is not mapping)
       - (smpe_target_zone is string) and (smpe_target_zone is iterable) and (smpe_target_zone is not mapping)
       - smpe_apply_options | isValidContent
       - (smpe_global_csi | length > 0) and (smpe_global_csi | length <= 42) and (smpe_global_csi | trim == smpe_global_csi)
@@ -25,16 +25,19 @@
     msg: "ERROR: The informed SMP/E GLOBAL CSI data set '{{ smpe_global_csi | upper }}' was not found."
   when: zos_smpe_apply_find_global_csi.data_sets | length == 0
 
-- name: "If SMPPTS data set was informed, verify its existence."
-  ibm.ibm_zos_core.zos_find:
-    patterns: "{{ smpe_smppts | upper }}"
-    resource_type: nonvsam
-  register: zos_smpe_apply_find_smppts
+- name: "Block to run when SMPPTS was informed."
+  when: smpe_smppts | length > 0
+  block:
+    - name: "If SMPPTS data set was informed, verify its existence."
+      ibm.ibm_zos_core.zos_find:
+        patterns: "{{ smpe_smppts | upper }}"
+        resource_type: nonvsam
+      register: zos_smpe_apply_find_smppts
 
-- name: "Fail play if informed SMPPTS data set does not exist."
-  ansible.builtin.fail:
-    msg: "ERROR: The informed SMPPTS data set '{{ smpe_smppts | upper }}' was not found."
-  when: zos_smpe_apply_find_smppts.data_sets | length == 0
+    - name: "Fail play if informed SMPPTS data set does not exist."
+      ansible.builtin.fail:
+        msg: "ERROR: The informed SMPPTS data set '{{ smpe_smppts | upper }}' was not found."
+      when: zos_smpe_apply_find_smppts.data_sets | length == 0
 
 - name: "Execute GIMSMP program with SMP/E APPLY command based on user input."
   ibm.ibm_zos_core.zos_mvs_raw:
@@ -75,14 +78,72 @@
       - dd_input:
           dd_name: smpcntl
           content: "{{ lookup('template', 'smpcntl.j2') }}"
+  failed_when: zos_smpe_apply_output.ret_code.code | int > 4
 
-- name: "If return code is different than 0 or 4, fail and display the entire job output."
+- name: "If return code is greater than 4, fail and display the entire job output."
   ansible.builtin.debug:
     msg: "{{ zos_smpe_apply_output }}"
-  when: zos_smpe_apply_output.ret_code.code | int not in [0, 4]
-  failed_when: zos_smpe_apply_output.ret_code.code | int not in [0, 4]
+  when: zos_smpe_apply_output.ret_code.code | int > 4
+  failed_when: zos_smpe_apply_output.ret_code.code | int > 4
+
+- name: "Set fact containing the details for the APPLY."
+  ansible.builtin.set_fact:
+    zos_smpe_apply_details:
+      applied_sysmods: "{{ ((__element_summary | selectattr('sysmod_status', 'eq', 'APPLIED') | map(attribute='sysmod_name') | list) + (__element_summary | map(attribute='other_status') | selectattr('sysmod_status', 'defined') | selectattr('sysmod_status', 'eq', 'APPLIED') | map(attribute='sysmod_name') | list)) | unique | list }}"
+      check: "{{ smpe_apply_options.check | default(False) }}"
+      element_summary: "{{ __element_summary }}"
+  vars:
+    __smprpt: "{{ (zos_smpe_apply_output.dd_names | selectattr('dd_name', 'eq', 'smprpt') | list | first).content | join('\n') | regex_replace('\\fPAGE \\d+  +- +NOW SET.+\\n', '') }}"
+    __smprpt_element_reports: "{{ ((__smprpt | regex_replace('^([\\s\\S]+?)(ELEMENT +SUMMARY +REPORT +FOR .+ PROCESSING[\\s\\S]+?)(\\n +SMP .+ ALLOCATION REPORT[\\s\\S]+)$', '\\1<sep>\\2<sep>\\3')).split('<sep>')[1] | regex_replace('( *ELEMENT +SUMMARY +REPORT +FOR .+ PROCESSING.*| *ELEMENT +ELEMENT +ELEMENT +CURRENT +CURRENT +DISTLIB +SYSLIB +ASSEM +LOAD +LMOD +SYSMOD +SYSMOD.*| *TYPE +NAME +STATUS +FMID +RMID +LIBRARY +LIBRARY +NAMES +MODULE +SYSLIB +NAME +STATUS.*)', '')).split('\n') | select() | list }}"
+    __element_summary: |-
+      {%- set result = [] -%}
+      {%- set elements = (__smprpt_element_reports | join('\n') | regex_replace('(?m)^(\S{1,8})', '<sep>\\1')).split('<sep>') | select() | list -%}
+      {%- for element in elements -%}
+        {%- set ns = namespace(obj={}, line_cnt=0) -%}
+        {%- set content = element.split('\n') | select() | list -%}
+        {%- set assem_names = [] -%}
+        {%- set load_modules = [] -%}
+        {%- set other_status = [] -%}
+        {%- set first_line = element | regex_findall('^(.{8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,7}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) {0,10}(.{0,7}) ?(.*)') | flatten(levels=1) | map('trim') | list -%}
+        {{- ns.obj.__setitem__('element_type', first_line[0]) -}}
+        {{- ns.obj.__setitem__('element_name', first_line[1]) -}}
+        {{- ns.obj.__setitem__('element_status', first_line[2]) -}}
+        {{- ns.obj.__setitem__('current_fmid', first_line[3]) -}}
+        {{- ns.obj.__setitem__('current_rmid', first_line[4]) -}}
+        {{- ns.obj.__setitem__('distlib_library', first_line[5]) -}}
+        {{- ns.obj.__setitem__('syslib_library', first_line[6]) -}}
+        {%- if first_line[7] | length > 0 -%}
+          {{- assem_names.append(first_line[7]) -}}
+        {%- endif -%}
+        {%- if first_line[8] | length > 0 -%}
+          {{- load_modules.append({'load_module': first_line[8], 'lmod_syslib': first_line[9]}) -}}
+        {%- endif -%}
+        {{- ns.obj.__setitem__('sysmod_name', first_line[10]) -}}
+        {{- ns.obj.__setitem__('sysmod_status', first_line[11]) -}}
+        {%- for line in content -%}
+          {%- set parsed_line = line | regex_findall('.{8} ?.{0,8} ?(.{0,8}) ?.{0,8} ?.{0,7} ?.{0,8} ?.{0,8} ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) {0,10}(.{0,7}) ?(.*)') | flatten(levels=1) | map('trim') | list -%}
+          {%- set ns.line_cnt = ns.line_cnt + 1 -%}
+          {%- if ns.line_cnt > 1 -%}
+            {%- if parsed_line[0] | length == 0 -%}
+              {%- if parsed_line[1] | length > 0 -%}
+                {{- assem_names.append(parsed_line[1]) -}}
+              {%- endif -%}
+              {%- if parsed_line[2] | length > 0 -%}
+                {{- load_modules.append({'load_module': parsed_line[2], 'lmod_syslib': parsed_line[3]}) -}}
+              {%- endif -%}
+            {%- else -%}
+              {{- other_status.append({'element_status': parsed_line[0], 'sysmod_name': parsed_line[4], 'sysmod_status': parsed_line[5]}) -}}
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{- ns.obj.__setitem__('assem_names', assem_names) -}}
+        {{- ns.obj.__setitem__('load_modules', load_modules) -}}
+        {{- ns.obj.__setitem__('other_status', other_status) -}}
+        {{- result.append(ns.obj) -}}
+      {%- endfor -%}
+      {{- result -}}
 
 - name: "Display output content if show_output is true."
   ansible.builtin.debug:
-    msg: "{{ zos_smpe_apply_output.dd_names | selectattr('dd_name', 'in', ['smpout', 'smprpt']) | list }}"
+    msg: "{{ zos_smpe_apply_details }}"
   when: show_output
