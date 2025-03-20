@@ -75,16 +75,66 @@
           dd_name: sysut3
       - dd_vio:
           dd_name: sysut4
-      - dd_vio:
+      - dd_data_set:
           dd_name: smpwrk1
-      - dd_vio:
+          disposition: new
+          disposition_normal: delete
+          disposition_abnormal: delete
+          record_format: fb
+          record_length: 80
+          replace: true
+          space_type: cyl
+          space_primary: 50
+          space_secondary: 50
+          type: library
+      - dd_data_set:
           dd_name: smpwrk2
-      - dd_vio:
+          disposition: new
+          disposition_normal: delete
+          disposition_abnormal: delete
+          record_format: fb
+          record_length: 80
+          replace: true
+          space_type: cyl
+          space_primary: 50
+          space_secondary: 50
+          type: library
+      - dd_data_set:
           dd_name: smpwrk3
-      - dd_vio:
+          disposition: new
+          disposition_normal: delete
+          disposition_abnormal: delete
+          record_format: fb
+          record_length: 80
+          replace: true
+          space_type: cyl
+          space_primary: 50
+          space_secondary: 50
+          type: library
+      - dd_data_set:
           dd_name: smpwrk4
-      - dd_vio:
+          disposition: new
+          disposition_normal: delete
+          disposition_abnormal: delete
+          record_format: fb
+          record_length: 80
+          replace: true
+          space_type: cyl
+          space_primary: 50
+          space_secondary: 50
+          type: library
+      - dd_data_set:
           dd_name: smpwrk6
+          disposition: new
+          disposition_normal: delete
+          disposition_abnormal: delete
+          record_format: fb
+          record_length: 80
+          replace: true
+          space_type: cyl
+          space_primary: 50
+          space_secondary: 50
+          type: library
       - dd_input:
           dd_name: smpcntl
           content: "{{ lookup('template', 'smpcntl.j2') }}"
