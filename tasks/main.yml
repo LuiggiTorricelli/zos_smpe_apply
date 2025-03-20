@@ -77,6 +77,7 @@
           dd_name: sysut4
       - dd_data_set:
           dd_name: smpwrk1
+          data_set_name: "{{ ansible_user }}.SMPWRK1.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
           disposition: new
           disposition_normal: delete
           disposition_abnormal: delete
@@ -89,6 +90,7 @@
           type: library
       - dd_data_set:
           dd_name: smpwrk2
+          data_set_name: "{{ ansible_user }}.SMPWRK2.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
           disposition: new
           disposition_normal: delete
           disposition_abnormal: delete
@@ -101,6 +103,7 @@
           type: library
       - dd_data_set:
           dd_name: smpwrk3
+          data_set_name: "{{ ansible_user }}.SMPWRK3.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
           disposition: new
           disposition_normal: delete
           disposition_abnormal: delete
@@ -113,6 +116,7 @@
           type: library
       - dd_data_set:
           dd_name: smpwrk4
+          data_set_name: "{{ ansible_user }}.SMPWRK4.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
           disposition: new
           disposition_normal: delete
           disposition_abnormal: delete
@@ -125,6 +129,7 @@
           type: library
       - dd_data_set:
           dd_name: smpwrk6
+          data_set_name: "{{ ansible_user }}.SMPWRK6.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
           disposition: new
           disposition_normal: delete
           disposition_abnormal: delete
