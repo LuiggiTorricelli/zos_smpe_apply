@@ -228,6 +228,8 @@ A fact named `zos_smpe_apply_details` is registered when the role is successfull
         ]
     }
 
+During the execution of program GIMSMP, the output DD statements SMPOUT, SMPRT and SYSPRINT will be temporarily saved on user's home directory with names `YYYYMMDDhhmmss_zos_smpe_apply_<dd_name>`. If the process finishes successfully, these files will be deleted.
+
 ## License
 
 This role is licensed under licensed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
