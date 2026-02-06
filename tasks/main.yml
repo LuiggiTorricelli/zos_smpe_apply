@@ -39,111 +39,158 @@
         msg: "ERROR: The informed SMPPTS data set '{{ smpe_smppts | upper }}' was not found."
       when: zos_smpe_apply_find_smppts.data_sets | length == 0
 
-- name: "Execute GIMSMP program with SMP/E APPLY command based on user input."
-  ibm.ibm_zos_core.zos_mvs_raw:
-    program_name: gimsmp
-    parm: "PROCESS=WAIT"
-    auth: true
-    dds: "{{ (__dds + __smppts) if smpe_smppts | length > 0 else __dds }}"
-  register: zos_smpe_apply_output
+- name: "Block to control GIMSMP and output file deletion"
   vars:
-    __smppts:
-      - dd_data_set:
-          dd_name: smppts
-          data_set_name: "{{ smpe_smppts | upper }}"
-    __dds:
-      - dd_data_set:
-          dd_name: smpcsi
-          data_set_name: "{{ smpe_global_csi | upper }}"
-      - dd_output:
-          dd_name: smpout
-          return_content:
-            type: text
-      - dd_output:
-          dd_name: smprpt
-          return_content:
-            type: text
-      - dd_output:
-          dd_name: sysprint
-          return_content:
-            type: text
-      - dd_vio:
-          dd_name: sysut1
-      - dd_vio:
-          dd_name: sysut2
-      - dd_vio:
-          dd_name: sysut3
-      - dd_vio:
-          dd_name: sysut4
-      - dd_data_set:
-          dd_name: smpwrk1
-          data_set_name: "{{ ansible_user }}.SMPWRK1.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
-          disposition: new
-          disposition_normal: delete
-          disposition_abnormal: delete
-          record_format: fb
-          record_length: 80
-          replace: true
-          space_type: cyl
-          space_primary: 50
-          space_secondary: 50
-          type: library
-      - dd_data_set:
-          dd_name: smpwrk2
-          data_set_name: "{{ ansible_user }}.SMPWRK2.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
-          disposition: new
-          disposition_normal: delete
-          disposition_abnormal: delete
-          record_format: fb
-          record_length: 80
-          replace: true
-          space_type: cyl
-          space_primary: 50
-          space_secondary: 50
-          type: library
-      - dd_data_set:
-          dd_name: smpwrk3
-          data_set_name: "{{ ansible_user }}.SMPWRK3.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
-          disposition: new
-          disposition_normal: delete
-          disposition_abnormal: delete
-          record_format: fb
-          record_length: 80
-          replace: true
-          space_type: cyl
-          space_primary: 50
-          space_secondary: 50
-          type: library
-      - dd_data_set:
-          dd_name: smpwrk4
-          data_set_name: "{{ ansible_user }}.SMPWRK4.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
-          disposition: new
-          disposition_normal: delete
-          disposition_abnormal: delete
-          record_format: fb
-          record_length: 80
-          replace: true
-          space_type: cyl
-          space_primary: 50
-          space_secondary: 50
-          type: library
-      - dd_data_set:
-          dd_name: smpwrk6
-          data_set_name: "{{ ansible_user }}.SMPWRK6.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
-          disposition: new
-          disposition_normal: delete
-          disposition_abnormal: delete
-          record_format: fb
-          record_length: 80
-          replace: true
-          space_type: cyl
-          space_primary: 50
-          space_secondary: 50
-          type: library
-      - dd_input:
-          dd_name: smpcntl
-          content: "{{ lookup('template', 'smpcntl.j2') }}"
-  failed_when: zos_smpe_apply_output.ret_code.code | int > 4
+    __smpout: "~/{{ datetime_qualifier }}_{{ role_name }}_smpout"
+    __smprpt: "~/{{ datetime_qualifier }}_{{ role_name }}_smprpt"
+    __sysprint: "~/{{ datetime_qualifier }}_{{ role_name }}_sysprint"
+  block:
+    - name: "Set fact containing the current date and time to be used on the file names."
+      ansible.builtin.set_fact:
+        datetime_qualifier: "{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}"
+      throttle: 1
+
+    - name: "Execute GIMSMP program with SMP/E APPLY command based on user input."
+      ibm.ibm_zos_core.zos_mvs_raw:
+        program_name: gimsmp
+        parm: "PROCESS=WAIT"
+        auth: true
+        dds: "{{ (__dds + __smppts) if smpe_smppts | length > 0 else __dds }}"
+      register: zos_smpe_apply_output
+      vars:
+        __smppts:
+          - dd_data_set:
+              dd_name: smppts
+              data_set_name: "{{ smpe_smppts | upper }}"
+        __dds:
+          - dd_data_set:
+              dd_name: smpcsi
+              data_set_name: "{{ smpe_global_csi | upper }}"
+          - dd_unix:
+              dd_name: smpout
+              access_group: rw
+              disposition_normal: keep
+              disposition_abnormal: keep
+              file_data_type: text
+              status_group: ocreat
+              record_format: fb
+              record_length: 133
+              path: "{{ __smpout }}"
+              return_content:
+                type: text
+          - dd_unix:
+              dd_name: smprpt
+              access_group: rw
+              disposition_normal: keep
+              disposition_abnormal: keep
+              file_data_type: text
+              status_group: ocreat
+              record_format: fb
+              record_length: 133
+              path: "{{ __smprpt }}"
+              return_content:
+                type: text
+          - dd_unix:
+              dd_name: sysprint
+              access_group: rw
+              disposition_normal: keep
+              disposition_abnormal: keep
+              file_data_type: text
+              status_group: ocreat
+              record_format: fb
+              record_length: 133
+              path: "{{ __sysprint }}"
+              return_content:
+                type: text
+          - dd_vio:
+              dd_name: sysut1
+          - dd_vio:
+              dd_name: sysut2
+          - dd_vio:
+              dd_name: sysut3
+          - dd_vio:
+              dd_name: sysut4
+          - dd_data_set:
+              dd_name: smpwrk1
+              data_set_name: "{{ ansible_user }}.SMPWRK1.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
+              disposition: new
+              disposition_normal: delete
+              disposition_abnormal: delete
+              record_format: fb
+              record_length: 80
+              replace: true
+              space_type: cyl
+              space_primary: 50
+              space_secondary: 50
+              type: library
+          - dd_data_set:
+              dd_name: smpwrk2
+              data_set_name: "{{ ansible_user }}.SMPWRK2.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
+              disposition: new
+              disposition_normal: delete
+              disposition_abnormal: delete
+              record_format: fb
+              record_length: 80
+              replace: true
+              space_type: cyl
+              space_primary: 50
+              space_secondary: 50
+              type: library
+          - dd_data_set:
+              dd_name: smpwrk3
+              data_set_name: "{{ ansible_user }}.SMPWRK3.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
+              disposition: new
+              disposition_normal: delete
+              disposition_abnormal: delete
+              record_format: fb
+              record_length: 80
+              replace: true
+              space_type: cyl
+              space_primary: 50
+              space_secondary: 50
+              type: library
+          - dd_data_set:
+              dd_name: smpwrk4
+              data_set_name: "{{ ansible_user }}.SMPWRK4.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
+              disposition: new
+              disposition_normal: delete
+              disposition_abnormal: delete
+              record_format: fb
+              record_length: 80
+              replace: true
+              space_type: cyl
+              space_primary: 50
+              space_secondary: 50
+              type: library
+          - dd_data_set:
+              dd_name: smpwrk6
+              data_set_name: "{{ ansible_user }}.SMPWRK6.T{{ lookup('pipe', 'date +%H%M%S') | string }}.M{{ lookup('pipe', 'date +%4N') | string }}"
+              disposition: new
+              disposition_normal: delete
+              disposition_abnormal: delete
+              record_format: fb
+              record_length: 80
+              replace: true
+              space_type: cyl
+              space_primary: 50
+              space_secondary: 50
+              type: library
+          - dd_input:
+              dd_name: smpcntl
+              content: "{{ lookup('template', 'smpcntl.j2') }}"
+      failed_when: zos_smpe_apply_output.ret_code.code | int > 4
+
+    - name: "Delete output files previously generated from GIMSMP execution"
+      ansible.builtin.file:
+        path: "{{ zos_smpe_apply_output_item }}"
+        state: absent
+      loop:
+        - "{{ __smpout }}"
+        - "{{ __smprpt }}"
+        - "{{ __sysprint }}"
+      loop_control:
+        loop_var: zos_smpe_apply_output_item
+      when: zos_smpe_apply_output.ret_code.code | int in [0, 4]
 
 - name: "If return code is greater than 4, fail and display the entire job output."
   ansible.builtin.debug:
@@ -158,33 +205,33 @@
       check: "{{ smpe_apply_options.check | default(False) }}"
       element_summary: "{{ __element_summary }}"
   vars:
-    __smprpt: "{{ (zos_smpe_apply_output.dd_names | selectattr('dd_name', 'eq', 'smprpt') | list | first).content | join('\n') | regex_replace('\\fPAGE \\d+  +- +NOW SET.+\\n', '') }}"
+    __smprpt: "{{ (zos_smpe_apply_output.dd_names | selectattr('dd_name', 'eq', 'smprpt') | list | first).content | join('\n') | regex_replace(' +\\n ?', '\n') | regex_replace('(?:\\f|\\d)PAGE \\d+  +- +NOW SET.+\\n', '') }}"
     __smprpt_element_reports: "{{ ((__smprpt | regex_replace('^([\\s\\S]+?)(ELEMENT +SUMMARY +REPORT +FOR .+ PROCESSING[\\s\\S]+?)(\\n +SMP .+ ALLOCATION REPORT[\\s\\S]+)$', '\\1<sep>\\2<sep>\\3')).split('<sep>')[1] | regex_replace('( *ELEMENT +SUMMARY +REPORT +FOR .+ PROCESSING.*| *ELEMENT +ELEMENT +ELEMENT +CURRENT +CURRENT +DISTLIB +SYSLIB +ASSEM +LOAD +LMOD +SYSMOD +SYSMOD.*| *TYPE +NAME +STATUS +FMID +RMID +LIBRARY +LIBRARY +NAMES +MODULE +SYSLIB +NAME +STATUS.*)', '')).split('\n') | select() | list }}"
     __element_summary: |-
       {%- set result = [] -%}
       {%- set elements = (__smprpt_element_reports | join('\n') | regex_replace('(?m)^(\S{1,8})', '<sep>\\1')).split('<sep>') | select() | list -%}
       {%- for element in elements -%}
-        {%- set ns = namespace(obj={}, line_cnt=0) -%}
+        {%- set ns = namespace(data={}, line_cnt=0) -%}
         {%- set content = element.split('\n') | select() | list -%}
         {%- set assem_names = [] -%}
         {%- set load_modules = [] -%}
         {%- set other_status = [] -%}
         {%- set first_line = element | regex_findall('^(.{8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,7}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) {0,10}(.{0,7}) ?(.*)') | flatten(levels=1) | map('trim') | list -%}
-        {{- ns.obj.__setitem__('element_type', first_line[0]) -}}
-        {{- ns.obj.__setitem__('element_name', first_line[1]) -}}
-        {{- ns.obj.__setitem__('element_status', first_line[2]) -}}
-        {{- ns.obj.__setitem__('current_fmid', first_line[3]) -}}
-        {{- ns.obj.__setitem__('current_rmid', first_line[4]) -}}
-        {{- ns.obj.__setitem__('distlib_library', first_line[5]) -}}
-        {{- ns.obj.__setitem__('syslib_library', first_line[6]) -}}
+        {{- ns.data.__setitem__('element_type', first_line[0]) -}}
+        {{- ns.data.__setitem__('element_name', first_line[1]) -}}
+        {{- ns.data.__setitem__('element_status', first_line[2]) -}}
+        {{- ns.data.__setitem__('current_fmid', first_line[3]) -}}
+        {{- ns.data.__setitem__('current_rmid', first_line[4]) -}}
+        {{- ns.data.__setitem__('distlib_library', first_line[5]) -}}
+        {{- ns.data.__setitem__('syslib_library', first_line[6]) -}}
         {%- if first_line[7] | length > 0 -%}
           {{- assem_names.append(first_line[7]) -}}
         {%- endif -%}
         {%- if first_line[8] | length > 0 -%}
           {{- load_modules.append({'load_module': first_line[8], 'lmod_syslib': first_line[9]}) -}}
         {%- endif -%}
-        {{- ns.obj.__setitem__('sysmod_name', first_line[10]) -}}
-        {{- ns.obj.__setitem__('sysmod_status', first_line[11]) -}}
+        {{- ns.data.__setitem__('sysmod_name', first_line[10]) -}}
+        {{- ns.data.__setitem__('sysmod_status', first_line[11]) -}}
         {%- for line in content -%}
           {%- set parsed_line = line | regex_findall('.{8} ?.{0,8} ?(.{0,8}) ?.{0,8} ?.{0,7} ?.{0,8} ?.{0,8} ?(.{0,8}) ?(.{0,8}) ?(.{0,8}) {0,10}(.{0,7}) ?(.*)') | flatten(levels=1) | map('trim') | list -%}
           {%- set ns.line_cnt = ns.line_cnt + 1 -%}
@@ -201,10 +248,10 @@
             {%- endif -%}
           {%- endif -%}
         {%- endfor -%}
-        {{- ns.obj.__setitem__('assem_names', assem_names) -}}
-        {{- ns.obj.__setitem__('load_modules', load_modules) -}}
-        {{- ns.obj.__setitem__('other_status', other_status) -}}
-        {{- result.append(ns.obj) -}}
+        {{- ns.data.__setitem__('assem_names', assem_names) -}}
+        {{- ns.data.__setitem__('load_modules', load_modules) -}}
+        {{- ns.data.__setitem__('other_status', other_status) -}}
+        {{- result.append(ns.data) -}}
       {%- endfor -%}
       {{- result -}}
 
