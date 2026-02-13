@@ -190,6 +190,8 @@
         - "{{ __sysprint }}"
       loop_control:
         loop_var: zos_smpe_apply_output_item
+      retries: 4
+      delay: 3
       when: zos_smpe_apply_output.ret_code.code | int in [0, 4]
 
 - name: "If return code is greater than 4, fail and display the entire job output."
